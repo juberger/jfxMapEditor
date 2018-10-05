@@ -15,6 +15,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
@@ -267,6 +269,18 @@ public class MainMouseDraw extends Application {
         Scene scene = new Scene(root, 950, 600);
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        scene.setOnKeyReleased((KeyEvent event) -> {
+            if (event.getCode() == KeyCode.Z && event.isControlDown()) {
+                if (editMap && mapDatas.size() > 0) {
+                    mapDatas.remove(mapDatas.size()-1);
+                    repaintMap();
+                } else if (editLine && sceneLines.size() > 0) {
+                    sceneLines.remove(sceneLines.size()-1);
+                    repaintLine();
+                }
+            }
+        });
     }
     
     private PVector getLineStart(double mouseX, double mouseY) {
