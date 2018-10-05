@@ -1,2 +1,2 @@
 # jfxMapEditor
-Editeur de map avec tiles et dynamic light
+Expérimentation d'un éditeur de map avec tiles et dynamic light
