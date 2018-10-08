@@ -39,7 +39,7 @@ public class MainMouseDraw extends Application {
     private GraphicsContext mapGraphicsContext;
     private GraphicsContext gridGraphicsContext;
     private GraphicsContext cursorGraphicsContext;
-    private Map<Long,Image> resourcesMap = new HashMap<>();
+    private Map<Long, Image> resourcesMap = new HashMap<>();
     private Long imageIdSelected;
     private List<MapData> mapDatas;
     private int oldCol = -1;
@@ -63,6 +63,11 @@ public class MainMouseDraw extends Application {
     private ToggleButton btSnapGrid;
     private boolean poliLine = false;
     private ToggleButton btPoliLine;
+    private boolean showLight = false;
+    private ToggleButton btShowLight;
+    private Algorithm algorithm;
+    private Canvas lightCanvas;
+    private GraphicsContext lightGraphicsContext;
 
     public static void main(String[] args) {
         launch(args);
@@ -70,14 +75,15 @@ public class MainMouseDraw extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        
+
         mapDatas = new ArrayList<>();
         sceneLines = new ArrayList<>();
         oldCol = -1;
         oldRow = -1;
         lineStart = null;
         lineEnd = null;
-        
+        algorithm = new Algorithm();
+
         Image image1 = new Image(this.getClass().getResourceAsStream("/ft_conc01_c_512.png"), 512, 512, true, true);
         resourcesMap.put(Long.valueOf(1), image1);
         Image image2 = new Image(this.getClass().getResourceAsStream("/ft_conc01_c_64.png"), 64, 64, true, true);
@@ -86,7 +92,7 @@ public class MainMouseDraw extends Application {
         resourcesMap.put(Long.valueOf(3), image3);
         Image image4 = new Image(this.getClass().getResourceAsStream("/ft_stone01_c_64.png"), 64, 64, true, true);
         resourcesMap.put(Long.valueOf(4), image4);
-        
+
         BorderPane root = new BorderPane();
 
         StackPane stackLayout = new StackPane();
@@ -101,12 +107,16 @@ public class MainMouseDraw extends Application {
         lineGraphicsContext.setStroke(Color.BLACK);
         lineGraphicsContext.setLineWidth(4);
         stackLayout.getChildren().add(lineCanvas);
-        
+
         cursorLineCanvas = new Canvas(width, height);
         cursorLineGraphicsContext = cursorLineCanvas.getGraphicsContext2D();
         cursorLineGraphicsContext.setStroke(Color.BLACK);
         cursorLineGraphicsContext.setLineWidth(4);
         stackLayout.getChildren().add(cursorLineCanvas);
+
+        lightCanvas = new Canvas(width, height);
+        lightGraphicsContext = lightCanvas.getGraphicsContext2D();
+        stackLayout.getChildren().add(lightCanvas);
 
         cursorCanvas = new Canvas(width, height);
         cursorGraphicsContext = cursorCanvas.getGraphicsContext2D();
@@ -116,11 +126,15 @@ public class MainMouseDraw extends Application {
         gridGraphicsContext = gridCanvas.getGraphicsContext2D();
         stackLayout.getChildren().add(gridCanvas);
         stackLayout.setOnMouseMoved((MouseEvent event) -> {
-            if (editMap) {
-                higlightCell(event);
-            }
-            if (editLine && poliLine && lineStart != null) {
-                lineEnd = traceLineToEnd(event.getX(), event.getY());
+            if (showLight) {
+                paintLight(event.getX(), event.getY());
+            } else {
+                if (editMap) {
+                    higlightCell(event);
+                }
+                if (editLine && poliLine && lineStart != null) {
+                    lineEnd = traceLineToEnd(event.getX(), event.getY());
+                }
             }
         });
         stackLayout.setOnMouseReleased((MouseEvent event) -> {
@@ -128,7 +142,7 @@ public class MainMouseDraw extends Application {
                 if (eraseMode) {
                     eraseCell(event.getX(), event.getY());
                 } else {
-                    paintImage(event.getX(), event.getY());                
+                    paintImage(event.getX(), event.getY());
                 }
             }
             if (editLine) {
@@ -179,7 +193,7 @@ public class MainMouseDraw extends Application {
         });
 
         paintGrid();
-        
+
         VBox toolPane = new VBox();
         toolPane.setPrefHeight(600);
         toolPane.setPrefWidth(150);
@@ -218,6 +232,11 @@ public class MainMouseDraw extends Application {
             poliLine = btPoliLine.isSelected();
         });
         toolPane.getChildren().add(btPoliLine);
+        btShowLight = new ToggleButton("Show Light");
+        btShowLight.setOnAction((ActionEvent event) -> {
+            showLight = btShowLight.isSelected();
+        });
+        toolPane.getChildren().add(btShowLight);
         Button btImage1 = new Button();
         btImage1.setText("Image 1");
         btImage1.setOnMouseClicked((MouseEvent event) -> {
@@ -246,7 +265,7 @@ public class MainMouseDraw extends Application {
         btErase.setText("Erase");
         btErase.setOnMouseClicked((MouseEvent event) -> {
             eraseMode = !eraseMode;
-            eraseLabel.setText("Erase mode : "+eraseMode);
+            eraseLabel.setText("Erase mode : " + eraseMode);
         });
         toolPane.getChildren().add(btErase);
         Button btReset = new Button();
@@ -263,7 +282,7 @@ public class MainMouseDraw extends Application {
             repaintLine();
         });
         toolPane.getChildren().add(btRepaint);
-        
+
         root.setRight(toolPane);
 
         Scene scene = new Scene(root, 950, 600);
@@ -273,16 +292,83 @@ public class MainMouseDraw extends Application {
         scene.setOnKeyReleased((KeyEvent event) -> {
             if (event.getCode() == KeyCode.Z && event.isControlDown()) {
                 if (editMap && mapDatas.size() > 0) {
-                    mapDatas.remove(mapDatas.size()-1);
+                    mapDatas.remove(mapDatas.size() - 1);
                     repaintMap();
                 } else if (editLine && sceneLines.size() > 0) {
-                    sceneLines.remove(sceneLines.size()-1);
+                    sceneLines.remove(sceneLines.size() - 1);
                     repaintLine();
                 }
             }
         });
     }
-    
+
+    private void paintLight(double x, double y) {
+        cursorGraphicsContext.clearRect(0, 0, width, height);
+        lightGraphicsContext.clearRect(0, 0, width, height);
+
+        // scanlines
+        List<Line> scanLines = algorithm.createScanLines(x, y);
+        // get intersection points
+        List<PVector> points = algorithm.getIntersectionPoints(scanLines, sceneLines);
+
+        // draw intersection shape
+        lightGraphicsContext.setStroke(Color.GREEN);
+
+        // if( Settings.get().isGradientShapeFill()) {
+        //
+        // Color LIGHT_GRADIENT_START = Color.YELLOW.deriveColor(1, 1, 1, 0.5);
+        // Color LIGHT_GRADIENT_END = Color.TRANSPARENT;
+        //
+        // // TODO: don't use the center of the shape; instead calculate the center depending on the user position
+        // RadialGradient gradient = new RadialGradient(
+        // 0, 0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
+        // new Stop(0, LIGHT_GRADIENT_START),
+        // new Stop(1, LIGHT_GRADIENT_END));
+        // gc.setFill(gradient);
+        //
+        // gc.setFill( gradient);
+        //
+        // } else {
+
+        lightGraphicsContext.setFill(Color.GREEN.deriveColor(1, 1, 1, 0.7));
+
+        // }
+
+        int count = 0;
+        lightGraphicsContext.beginPath();
+        for (PVector point : points) {
+            if (count == 0) {
+                lightGraphicsContext.moveTo(point.x, point.y);
+            } else {
+                lightGraphicsContext.lineTo(point.x, point.y);
+            }
+            count++;
+        }
+        lightGraphicsContext.closePath();
+
+        // stroke
+        // if( Settings.get().isShapeBorderVisible()) {
+        lightGraphicsContext.stroke();
+        // }
+
+        // fill
+        lightGraphicsContext.fill();
+
+        // draw intersection points
+        // if( Settings.get().isDrawPoints()) {
+
+        lightGraphicsContext.setStroke(Color.RED);
+        lightGraphicsContext.setFill(Color.RED.deriveColor(1, 1, 1, 0.5));
+
+        double w = 2;
+        double h = w;
+        for (PVector point : points) {
+            lightGraphicsContext.strokeOval(point.x - w / 2, point.y - h / 2, w, h);
+            lightGraphicsContext.fillOval(point.x - w / 2, point.y - h / 2, w, h);
+        }
+        // }
+    }
+
     private PVector getLineStart(double mouseX, double mouseY) {
         double x = mouseX;
         double y = mouseY;
@@ -292,7 +378,7 @@ public class MainMouseDraw extends Application {
         }
         return new PVector(x, y);
     }
-    
+
     private PVector traceLineToEnd(double mouseX, double mouseY) {
         cursorLineGraphicsContext.clearRect(0, 0, width, height);
         double x = mouseX;
@@ -304,7 +390,7 @@ public class MainMouseDraw extends Application {
         cursorLineGraphicsContext.strokeLine(lineStart.x, lineStart.y, x, y);
         return new PVector(x, y);
     }
-    
+
     private void drawLine() {
         Line line = new Line(lineStart, lineEnd);
         sceneLines.add(line);
@@ -316,12 +402,12 @@ public class MainMouseDraw extends Application {
         mapGraphicsContext.clearRect(0, 0, width, height);
         for (MapData mapData : mapDatas) {
             Image currentImage = resourcesMap.get(mapData.getId());
-            if (currentImage != null) {                    
+            if (currentImage != null) {
                 mapGraphicsContext.drawImage(currentImage, mapData.getX(), mapData.getY());
             }
         }
     }
-    
+
     private void repaintLine() {
         lineGraphicsContext.clearRect(0, 0, width, height);
         for (Line line : sceneLines) {
@@ -339,15 +425,18 @@ public class MainMouseDraw extends Application {
         cursorGraphicsContext.setFill(highlightColor);
         if (imageIdSelected != null) {
             Image currentImage = resourcesMap.get(imageIdSelected);
-            cursorGraphicsContext.fillRect(col * cellSize, row * cellSize, currentImage.getWidth(), currentImage.getHeight());
+            cursorGraphicsContext.fillRect(col * cellSize,
+                                           row * cellSize,
+                                           currentImage.getWidth(),
+                                           currentImage.getHeight());
         } else {
             cursorGraphicsContext.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
         }
     }
-    
+
     private void selectImage(Long id) {
         imageIdSelected = id;
-        selectedImage.setText("Selected : Image "+id);
+        selectedImage.setText("Selected : Image " + id);
     }
 
     private void paintGrid() {
@@ -370,7 +459,7 @@ public class MainMouseDraw extends Application {
         }
 
     }
-    
+
     private void paintImage(double mouseX, double mouseY) {
         if (imageIdSelected != null) {
             Image currentImage = resourcesMap.get(imageIdSelected);
@@ -388,11 +477,11 @@ public class MainMouseDraw extends Application {
                 mapDatas.add(mapData);
                 oldCol = col;
                 oldRow = row;
-                nbImage.setText("Nb images : "+mapDatas.size());
+                nbImage.setText("Nb images : " + mapDatas.size());
             }
         }
     }
-    
+
     private void eraseCell(double mouseX, double mouseY) {
         if (imageIdSelected != null) {
             Image currentImage = resourcesMap.get(imageIdSelected);
@@ -408,12 +497,11 @@ public class MainMouseDraw extends Application {
             repaintMap();
         }
     }
-    
+
     private boolean removeAlreadyPainted(MapData mapData) {
         boolean exist = false;
         for (MapData containedMapData : mapDatas) {
-            if(containedMapData.getId() == mapData.getId()
-                    && containedMapData.getX() == mapData.getX()
+            if (containedMapData.getId() == mapData.getId() && containedMapData.getX() == mapData.getX()
                     && containedMapData.getY() == mapData.getY()) {
                 mapDatas.remove(containedMapData);
                 exist = true;
@@ -422,7 +510,7 @@ public class MainMouseDraw extends Application {
         }
         return exist;
     }
-    
+
     private double getSnapedX(double mouseX) {
         double x = mouseX;
         int col = (int) (horizontalCellCount / width * mouseX);
@@ -435,7 +523,7 @@ public class MainMouseDraw extends Application {
         }
         return x;
     }
-    
+
     private double getSnapedY(double mouseY) {
         double y = mouseY;
         int row = (int) (verticalCellCount / height * mouseY);
@@ -448,5 +536,5 @@ public class MainMouseDraw extends Application {
         }
         return y;
     }
-    
+
 }
