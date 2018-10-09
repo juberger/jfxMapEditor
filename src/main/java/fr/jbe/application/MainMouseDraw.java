@@ -8,6 +8,7 @@ import java.util.Map;
 import javafx.application.Application;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
+import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -23,6 +24,13 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.RadialGradient;
+import javafx.scene.paint.Stop;
+import javafx.scene.shape.Path;
+import javafx.scene.shape.Polygon;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.Shape;
 import javafx.stage.Stage;
 
 public class MainMouseDraw extends Application {
@@ -68,6 +76,11 @@ public class MainMouseDraw extends Application {
     private Algorithm algorithm;
     private Canvas lightCanvas;
     private GraphicsContext lightGraphicsContext;
+    private boolean gradientLight = false;
+    private ToggleButton btGradientLight;
+    private boolean redPoints = true;
+    private ToggleButton btRedPoints;
+    private Group fogLayout;
 
     public static void main(String[] args) {
         launch(args);
@@ -117,6 +130,9 @@ public class MainMouseDraw extends Application {
         lightCanvas = new Canvas(width, height);
         lightGraphicsContext = lightCanvas.getGraphicsContext2D();
         stackLayout.getChildren().add(lightCanvas);
+
+        fogLayout = new Group();
+        stackLayout.getChildren().add(fogLayout);
 
         cursorCanvas = new Canvas(width, height);
         cursorGraphicsContext = cursorCanvas.getGraphicsContext2D();
@@ -237,6 +253,17 @@ public class MainMouseDraw extends Application {
             showLight = btShowLight.isSelected();
         });
         toolPane.getChildren().add(btShowLight);
+        btGradientLight = new ToggleButton("Gradient Light");
+        btGradientLight.setOnAction((ActionEvent event) -> {
+            gradientLight = btGradientLight.isSelected();
+        });
+        toolPane.getChildren().add(btGradientLight);
+        btRedPoints = new ToggleButton("Red Points");
+        btRedPoints.setOnAction((ActionEvent event) -> {
+            redPoints = btRedPoints.isSelected();
+        });
+        toolPane.getChildren().add(btRedPoints);
+        btRedPoints.setSelected(true);
         Button btImage1 = new Button();
         btImage1.setText("Image 1");
         btImage1.setOnMouseClicked((MouseEvent event) -> {
@@ -314,25 +341,30 @@ public class MainMouseDraw extends Application {
         // draw intersection shape
         lightGraphicsContext.setStroke(Color.GREEN);
 
-        // if( Settings.get().isGradientShapeFill()) {
-        //
-        // Color LIGHT_GRADIENT_START = Color.YELLOW.deriveColor(1, 1, 1, 0.5);
-        // Color LIGHT_GRADIENT_END = Color.TRANSPARENT;
-        //
-        // // TODO: don't use the center of the shape; instead calculate the center depending on the user position
-        // RadialGradient gradient = new RadialGradient(
-        // 0, 0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
-        // new Stop(0, LIGHT_GRADIENT_START),
-        // new Stop(1, LIGHT_GRADIENT_END));
-        // gc.setFill(gradient);
-        //
-        // gc.setFill( gradient);
-        //
-        // } else {
+        if (gradientLight) {
 
-        lightGraphicsContext.setFill(Color.GREEN.deriveColor(1, 1, 1, 0.7));
+            Color LIGHT_GRADIENT_START = Color.YELLOW.deriveColor(1, 1, 1, 0.5);
+            Color LIGHT_GRADIENT_END = Color.TRANSPARENT;
 
-        // }
+            // TODO: don't use the center of the shape; instead calculate the center depending on the user position
+            RadialGradient gradient = new RadialGradient(0,
+                                                         0,
+                                                         0.5,
+                                                         0.5,
+                                                         0.5,
+                                                         true,
+                                                         CycleMethod.NO_CYCLE,
+                                                         new Stop(0, LIGHT_GRADIENT_START),
+                                                         new Stop(1, LIGHT_GRADIENT_END));
+            lightGraphicsContext.setFill(gradient);
+
+            lightGraphicsContext.setFill(gradient);
+
+        } else {
+
+            lightGraphicsContext.setFill(Color.GREEN.deriveColor(1, 1, 1, 0.7));
+
+        }
 
         int count = 0;
         lightGraphicsContext.beginPath();
@@ -355,18 +387,41 @@ public class MainMouseDraw extends Application {
         lightGraphicsContext.fill();
 
         // draw intersection points
-        // if( Settings.get().isDrawPoints()) {
+        if (redPoints) {
 
-        lightGraphicsContext.setStroke(Color.RED);
-        lightGraphicsContext.setFill(Color.RED.deriveColor(1, 1, 1, 0.5));
+            lightGraphicsContext.setStroke(Color.RED);
+            lightGraphicsContext.setFill(Color.RED.deriveColor(1, 1, 1, 0.5));
 
-        double w = 2;
-        double h = w;
-        for (PVector point : points) {
-            lightGraphicsContext.strokeOval(point.x - w / 2, point.y - h / 2, w, h);
-            lightGraphicsContext.fillOval(point.x - w / 2, point.y - h / 2, w, h);
+            double w = 2;
+            double h = w;
+            for (PVector point : points) {
+                lightGraphicsContext.strokeOval(point.x - w / 2, point.y - h / 2, w, h);
+                lightGraphicsContext.fillOval(point.x - w / 2, point.y - h / 2, w, h);
+            }
+
         }
-        // }
+
+        Rectangle fog = new Rectangle(width, height);
+        fog.relocate(0, 0);
+
+        Polygon polyLight = getPolygonByPoints(points);
+        Shape fogPath = Path.subtract(fog, polyLight);
+        fogPath.setFill(Color.BLACK.deriveColor(1, 1, 1, 0.9));
+        fogLayout.getChildren().clear();
+        fogLayout.getChildren().add(fogPath);
+    }
+
+    private Polygon getPolygonByPoints(List<PVector> points) {
+        double[] poliXY = new double[(points.size()*2)];
+        int index = 0;
+        for (PVector point : points) {
+            poliXY[index] = point.x;
+            index++;
+            poliXY[index] = point.y;
+            index++;
+        }
+        
+        return new Polygon(poliXY);
     }
 
     private PVector getLineStart(double mouseX, double mouseY) {

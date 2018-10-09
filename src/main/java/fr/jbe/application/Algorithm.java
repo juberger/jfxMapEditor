@@ -85,6 +85,8 @@ public class Algorithm {
 				}
 
 				points.add(new PVector(x, y));
+			} else {
+			    points.add(scanLine.getEnd());
 			}
 
 		}
