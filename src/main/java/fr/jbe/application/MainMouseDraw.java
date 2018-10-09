@@ -523,6 +523,7 @@ public class MainMouseDraw extends Application {
         sceneLines.add(line);
         lineGraphicsContext.strokeLine(lineStart.x, lineStart.y, lineEnd.x, lineEnd.y);
         cursorLineGraphicsContext.clearRect(0, 0, width, height);
+        nbLine.setText("Nb lignes : "+sceneLines.size());
     }
 
     private void repaintMap() {
