@@ -8,12 +8,14 @@ import java.util.Map;
 import javafx.application.Application;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
@@ -21,6 +23,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -53,6 +56,7 @@ public class MainMouseDraw extends Application {
     private int oldCol = -1;
     private int oldRow = -1;
     private Label nbImage = new Label("Nb images : 0");
+    private Label nbLine = new Label("Nb lignes : 0");
     private Label selectedImage = new Label("Selected : none");
     private Label eraseLabel = new Label("Erase mode : false");
     private boolean eraseMode = false;
@@ -209,108 +213,8 @@ public class MainMouseDraw extends Application {
         });
 
         paintGrid();
-
-        VBox toolPane = new VBox();
-        toolPane.setPrefHeight(600);
-        toolPane.setPrefWidth(150);
-        toolPane.setSpacing(10);
-        toolPane.setPadding(new Insets(10));
-        toolPane.getChildren().add(nbImage);
-        toolPane.getChildren().add(eraseLabel);
-        toolPane.getChildren().add(selectedImage);
-        btEditMap = new ToggleButton("Edit Map");
-        btEditMap.setOnAction((ActionEvent event) -> {
-            editMap = btEditMap.isSelected();
-            if (btEditMap.isSelected()) {
-                editLine = false;
-                btEditLine.setSelected(false);
-            }
-        });
-        toolPane.getChildren().add(btEditMap);
-        btEditMap.setSelected(true);
-        btEditLine = new ToggleButton("Edit Line");
-        btEditLine.setOnAction((ActionEvent event) -> {
-            editLine = btEditLine.isSelected();
-            if (btEditLine.isSelected()) {
-                editMap = false;
-                btEditMap.setSelected(false);
-                cursorGraphicsContext.clearRect(0, 0, width, height);
-            }
-        });
-        toolPane.getChildren().add(btEditLine);
-        btSnapGrid = new ToggleButton("Snap Grid");
-        btSnapGrid.setOnAction((ActionEvent event) -> {
-            snapGrid = btSnapGrid.isSelected();
-        });
-        toolPane.getChildren().add(btSnapGrid);
-        btPoliLine = new ToggleButton("Poli Line");
-        btPoliLine.setOnAction((ActionEvent event) -> {
-            poliLine = btPoliLine.isSelected();
-        });
-        toolPane.getChildren().add(btPoliLine);
-        btShowLight = new ToggleButton("Show Light");
-        btShowLight.setOnAction((ActionEvent event) -> {
-            showLight = btShowLight.isSelected();
-        });
-        toolPane.getChildren().add(btShowLight);
-        btGradientLight = new ToggleButton("Gradient Light");
-        btGradientLight.setOnAction((ActionEvent event) -> {
-            gradientLight = btGradientLight.isSelected();
-        });
-        toolPane.getChildren().add(btGradientLight);
-        btRedPoints = new ToggleButton("Red Points");
-        btRedPoints.setOnAction((ActionEvent event) -> {
-            redPoints = btRedPoints.isSelected();
-        });
-        toolPane.getChildren().add(btRedPoints);
-        btRedPoints.setSelected(true);
-        Button btImage1 = new Button();
-        btImage1.setText("Image 1");
-        btImage1.setOnMouseClicked((MouseEvent event) -> {
-            selectImage(Long.valueOf(1));
-        });
-        toolPane.getChildren().add(btImage1);
-        Button btImage2 = new Button();
-        btImage2.setText("Image 2");
-        btImage2.setOnMouseClicked((MouseEvent event) -> {
-            selectImage(Long.valueOf(2));
-        });
-        toolPane.getChildren().add(btImage2);
-        Button btImage3 = new Button();
-        btImage3.setText("Image 3");
-        btImage3.setOnMouseClicked((MouseEvent event) -> {
-            selectImage(Long.valueOf(3));
-        });
-        toolPane.getChildren().add(btImage3);
-        Button btImage4 = new Button();
-        btImage4.setText("Image 4");
-        btImage4.setOnMouseClicked((MouseEvent event) -> {
-            selectImage(Long.valueOf(4));
-        });
-        toolPane.getChildren().add(btImage4);
-        Button btErase = new Button();
-        btErase.setText("Erase");
-        btErase.setOnMouseClicked((MouseEvent event) -> {
-            eraseMode = !eraseMode;
-            eraseLabel.setText("Erase mode : " + eraseMode);
-        });
-        toolPane.getChildren().add(btErase);
-        Button btReset = new Button();
-        btReset.setText("Reset");
-        btReset.setOnMouseClicked((MouseEvent event) -> {
-            mapGraphicsContext.clearRect(0, 0, width, height);
-            lineGraphicsContext.clearRect(0, 0, width, height);
-        });
-        toolPane.getChildren().add(btReset);
-        Button btRepaint = new Button();
-        btRepaint.setText("Repaint");
-        btRepaint.setOnMouseClicked((MouseEvent event) -> {
-            repaintMap();
-            repaintLine();
-        });
-        toolPane.getChildren().add(btRepaint);
-
-        root.setRight(toolPane);
+        
+        createGui(root);
 
         Scene scene = new Scene(root, 950, 600);
         primaryStage.setScene(scene);
@@ -327,6 +231,174 @@ public class MainMouseDraw extends Application {
                 }
             }
         });
+    }
+    
+    private void createGui(BorderPane root) {
+        VBox toolPane = new VBox();
+        toolPane.setPrefHeight(600);
+        toolPane.setPrefWidth(150);
+        toolPane.setSpacing(10);
+        toolPane.setPadding(new Insets(10));
+        
+        toolPane.getChildren().add(nbImage);
+        toolPane.getChildren().add(nbLine);
+        toolPane.getChildren().add(eraseLabel);
+        toolPane.getChildren().add(selectedImage);
+        
+        toolPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
+        
+        GridPane mapGrid = new GridPane();
+        mapGrid.setHgap(5);
+        mapGrid.setVgap(5);
+        Label editMapLabel = new Label("Edit Map");
+        mapGrid.add(editMapLabel, 0, 0);
+        btEditMap = new ToggleButton("On");
+        btEditMap.setOnAction((ActionEvent event) -> {
+            editMap = btEditMap.isSelected();
+            if (btEditMap.isSelected()) {
+                editLine = false;
+                btEditLine.setSelected(false);
+            }
+            btEditMap.setText(editMap==true?"On":"Off");
+        });
+        btEditMap.setSelected(true);
+        mapGrid.add(btEditMap, 1, 0);
+        Button btImage1 = new Button();
+        btImage1.setText("Image 1");
+        btImage1.setOnMouseClicked((MouseEvent event) -> {
+            selectImage(Long.valueOf(1));
+        });
+        mapGrid.add(btImage1, 0, 1);
+        Button btImage2 = new Button();
+        btImage2.setText("Image 2");
+        btImage2.setOnMouseClicked((MouseEvent event) -> {
+            selectImage(Long.valueOf(2));
+        });
+        mapGrid.add(btImage2, 1, 1);
+        Button btImage3 = new Button();
+        btImage3.setText("Image 3");
+        btImage3.setOnMouseClicked((MouseEvent event) -> {
+            selectImage(Long.valueOf(3));
+        });
+        mapGrid.add(btImage3, 0, 2);
+        Button btImage4 = new Button();
+        btImage4.setText("Image 4");
+        btImage4.setOnMouseClicked((MouseEvent event) -> {
+            selectImage(Long.valueOf(4));
+        });
+        mapGrid.add(btImage4, 1, 2);
+        toolPane.getChildren().add(mapGrid);
+
+        toolPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
+        
+        GridPane lineGrid = new GridPane();
+        lineGrid.setHgap(5);
+        lineGrid.setVgap(5);
+        Label editLineLabel = new Label("Edit Line");
+        lineGrid.add(editLineLabel, 0, 0);
+        btEditLine = new ToggleButton("Off");
+        btEditLine.setOnAction((ActionEvent event) -> {
+            editLine = btEditLine.isSelected();
+            if (btEditLine.isSelected()) {
+                editMap = false;
+                btEditMap.setSelected(false);
+                cursorGraphicsContext.clearRect(0, 0, width, height);
+                btEditLine.setText(editLine==true?"On":"Off");
+            }
+        });
+        lineGrid.add(btEditLine, 1, 0);
+        Label snapGridLabel = new Label("Snap Grid");
+        lineGrid.add(snapGridLabel, 0, 1);
+        btSnapGrid = new ToggleButton("Off");
+        btSnapGrid.setOnAction((ActionEvent event) -> {
+            snapGrid = btSnapGrid.isSelected();
+            btSnapGrid.setText(snapGrid==true?"On":"Off");
+        });
+        lineGrid.add(btSnapGrid, 1, 1);
+        Label polyLineLabel = new Label("Poly Line");
+        lineGrid.add(polyLineLabel, 0, 2);
+        btPoliLine = new ToggleButton("Off");
+        btPoliLine.setOnAction((ActionEvent event) -> {
+            poliLine = btPoliLine.isSelected();
+            btPoliLine.setText(poliLine==true?"On":"Off");
+        });
+        lineGrid.add(btPoliLine, 1, 2);
+        Label hideLineLabel = new Label("Hide Line");
+        lineGrid.add(hideLineLabel, 0, 3);
+        ToggleButton btHideLine = new ToggleButton("Off");
+        btHideLine.setOnAction((ActionEvent event) -> {
+            lineCanvas.setVisible(!btHideLine.isSelected());
+            btHideLine.setText(btHideLine.isSelected()==true?"On":"Off");
+        });
+        lineGrid.add(btHideLine, 1, 3);
+        toolPane.getChildren().add(lineGrid);
+
+        toolPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
+        
+        GridPane lightGrid = new GridPane();
+        lightGrid.setHgap(5);
+        lightGrid.setVgap(5);
+        Label showLightLabel = new Label("Show Light");
+        lightGrid.add(showLightLabel, 0, 0);
+        btShowLight = new ToggleButton("Off");
+        btShowLight.setOnAction((ActionEvent event) -> {
+            showLight = btShowLight.isSelected();
+            if (!showLight) {
+                lightGraphicsContext.clearRect(0, 0, width, height);
+                fogLayout.getChildren().clear();
+            }
+            btShowLight.setText(showLight==true?"On":"Off");
+        });
+        lightGrid.add(btShowLight, 1, 0);
+        Label gradLightLabel = new Label("Gradient Light");
+        lightGrid.add(gradLightLabel, 0, 1);
+        btGradientLight = new ToggleButton("Off");
+        btGradientLight.setOnAction((ActionEvent event) -> {
+            gradientLight = btGradientLight.isSelected();
+            btGradientLight.setText(gradientLight==true?"On":"Off");
+        });
+        lightGrid.add(btGradientLight, 1, 1);
+        Label redPointLabel = new Label("Red Points");
+        lightGrid.add(redPointLabel, 0, 2);
+        btRedPoints = new ToggleButton("On");
+        btRedPoints.setOnAction((ActionEvent event) -> {
+            redPoints = btRedPoints.isSelected();
+            btRedPoints.setText(redPoints==true?"On":"Off");
+        });
+        btRedPoints.setSelected(true);
+        lightGrid.add(btRedPoints, 1, 2);
+        toolPane.getChildren().add(lightGrid);
+
+        toolPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
+        
+        GridPane resetGrid = new GridPane();
+        resetGrid.setHgap(5);
+        resetGrid.setVgap(5);
+        Button btReset = new Button();
+        btReset.setText("Reset");
+        btReset.setOnMouseClicked((MouseEvent event) -> {
+            mapGraphicsContext.clearRect(0, 0, width, height);
+            lineGraphicsContext.clearRect(0, 0, width, height);
+        });
+        resetGrid.add(btReset, 0, 0);
+        Button btRepaint = new Button();
+        btRepaint.setText("Repaint");
+        btRepaint.setOnMouseClicked((MouseEvent event) -> {
+            repaintMap();
+            repaintLine();
+        });
+        resetGrid.add(btRepaint, 1, 0);
+        
+        Button btErase = new Button();
+        btErase.setText("Erase");
+        btErase.setOnMouseClicked((MouseEvent event) -> {
+            eraseMode = !eraseMode;
+            eraseLabel.setText("Erase mode : " + eraseMode);
+        });
+        resetGrid.add(btErase, 0, 1);
+        toolPane.getChildren().add(resetGrid);
+        
+        root.setRight(toolPane);
     }
 
     private void paintLight(double x, double y) {
