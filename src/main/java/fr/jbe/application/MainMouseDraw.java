@@ -65,26 +65,21 @@ public class MainMouseDraw extends Application {
     private Canvas cursorLineCanvas;
     private GraphicsContext lineGraphicsContext;
     private GraphicsContext cursorLineGraphicsContext;
-    private ToggleButton btEditMap;
     private boolean editMap = true;
-    private ToggleButton btEditLine;
     private boolean editLine = false;
     private PVector lineStart;
     private PVector lineEnd;
     private boolean snapGrid = false;
-    private ToggleButton btSnapGrid;
     private boolean poliLine = false;
-    private ToggleButton btPoliLine;
     private boolean showLight = false;
-    private ToggleButton btShowLight;
     private Algorithm algorithm;
     private Canvas lightCanvas;
     private GraphicsContext lightGraphicsContext;
     private boolean gradientLight = false;
-    private ToggleButton btGradientLight;
     private boolean redPoints = true;
-    private ToggleButton btRedPoints;
     private Group fogLayout;
+    private int selectedLine = -1;
+    private boolean selectLineMode = false;
 
     public static void main(String[] args) {
         launch(args);
@@ -99,7 +94,7 @@ public class MainMouseDraw extends Application {
         oldRow = -1;
         lineStart = null;
         lineEnd = null;
-        algorithm = new Algorithm();
+        algorithm = new AlgorithmCustom();
 
         Image image1 = new Image(this.getClass().getResourceAsStream("/ft_conc01_c_512.png"), 512, 512, true, true);
         resourcesMap.put(Long.valueOf(1), image1);
@@ -148,6 +143,10 @@ public class MainMouseDraw extends Application {
         stackLayout.setOnMouseMoved((MouseEvent event) -> {
             if (showLight) {
                 paintLight(event.getX(), event.getY());
+            } else if (selectLineMode) { 
+                PVector mouseLocation = new PVector(event.getX(), event.getY());
+                selectedLine = algorithm.getIntersectLineIndex(mouseLocation, sceneLines);
+                repaintLine();
             } else {
                 if (editMap) {
                     higlightCell(event);
@@ -187,7 +186,14 @@ public class MainMouseDraw extends Application {
                         lineEnd = null;
                     }
                 }
+            } else if (selectLineMode && event.getButton().equals(MouseButton.PRIMARY)) {
+                PVector mouseLocation = new PVector(event.getX(), event.getY());
+                selectedLine = algorithm.getIntersectLineIndex(mouseLocation, sceneLines);
+                if (selectedLine > -1) {
+                    repaintLine();
+                }
             }
+            selectedLine = -1;
         });
         stackLayout.setOnMouseDragged((MouseEvent event) -> {
             if (editMap) {
@@ -245,6 +251,19 @@ public class MainMouseDraw extends Application {
         toolPane.getChildren().add(eraseLabel);
         toolPane.getChildren().add(selectedImage);
         
+        final ToggleButton btEditLine = new ToggleButton("Off");
+        final ToggleButton btEditMap = new ToggleButton("On");
+        final ToggleButton btSnapGrid = new ToggleButton("Off");
+        final ToggleButton btPoliLine = new ToggleButton("Off");
+        final ToggleButton btHideLine = new ToggleButton("Off");
+        final ToggleButton btSelectLine = new ToggleButton("Off");
+        final ToggleButton btShowLight = new ToggleButton("Off");
+        final ToggleButton btGradientLight = new ToggleButton("Off");
+        final ToggleButton btRedPoints = new ToggleButton("On");
+        final Button btReset = new Button();
+        final Button btRepaint = new Button();
+        final Button btErase = new Button();
+        
         toolPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
         
         GridPane mapGrid = new GridPane();
@@ -252,7 +271,6 @@ public class MainMouseDraw extends Application {
         mapGrid.setVgap(5);
         Label editMapLabel = new Label("Edit Map");
         mapGrid.add(editMapLabel, 0, 0);
-        btEditMap = new ToggleButton("On");
         btEditMap.setOnAction((ActionEvent event) -> {
             editMap = btEditMap.isSelected();
             if (btEditMap.isSelected()) {
@@ -296,12 +314,12 @@ public class MainMouseDraw extends Application {
         lineGrid.setVgap(5);
         Label editLineLabel = new Label("Edit Line");
         lineGrid.add(editLineLabel, 0, 0);
-        btEditLine = new ToggleButton("Off");
         btEditLine.setOnAction((ActionEvent event) -> {
             editLine = btEditLine.isSelected();
             if (btEditLine.isSelected()) {
                 editMap = false;
                 btEditMap.setSelected(false);
+                btSelectLine.setSelected(false);
                 cursorGraphicsContext.clearRect(0, 0, width, height);
                 btEditLine.setText(editLine==true?"On":"Off");
             }
@@ -309,7 +327,6 @@ public class MainMouseDraw extends Application {
         lineGrid.add(btEditLine, 1, 0);
         Label snapGridLabel = new Label("Snap Grid");
         lineGrid.add(snapGridLabel, 0, 1);
-        btSnapGrid = new ToggleButton("Off");
         btSnapGrid.setOnAction((ActionEvent event) -> {
             snapGrid = btSnapGrid.isSelected();
             btSnapGrid.setText(snapGrid==true?"On":"Off");
@@ -317,7 +334,6 @@ public class MainMouseDraw extends Application {
         lineGrid.add(btSnapGrid, 1, 1);
         Label polyLineLabel = new Label("Poly Line");
         lineGrid.add(polyLineLabel, 0, 2);
-        btPoliLine = new ToggleButton("Off");
         btPoliLine.setOnAction((ActionEvent event) -> {
             poliLine = btPoliLine.isSelected();
             btPoliLine.setText(poliLine==true?"On":"Off");
@@ -325,12 +341,22 @@ public class MainMouseDraw extends Application {
         lineGrid.add(btPoliLine, 1, 2);
         Label hideLineLabel = new Label("Hide Line");
         lineGrid.add(hideLineLabel, 0, 3);
-        ToggleButton btHideLine = new ToggleButton("Off");
         btHideLine.setOnAction((ActionEvent event) -> {
             lineCanvas.setVisible(!btHideLine.isSelected());
             btHideLine.setText(btHideLine.isSelected()==true?"On":"Off");
         });
         lineGrid.add(btHideLine, 1, 3);
+        Label selectLineLabel = new Label("Select Line");
+        lineGrid.add(selectLineLabel, 0, 4);
+        btSelectLine.setOnAction((ActionEvent event) -> {
+            selectLineMode = btSelectLine.isSelected();
+            if (selectLineMode) {
+                btEditLine.setSelected(false);
+                editLine = false;
+            }
+            btSelectLine.setText(btSelectLine.isSelected()==true?"On":"Off");
+        });
+        lineGrid.add(btSelectLine, 1, 4);
         toolPane.getChildren().add(lineGrid);
 
         toolPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
@@ -340,7 +366,6 @@ public class MainMouseDraw extends Application {
         lightGrid.setVgap(5);
         Label showLightLabel = new Label("Show Light");
         lightGrid.add(showLightLabel, 0, 0);
-        btShowLight = new ToggleButton("Off");
         btShowLight.setOnAction((ActionEvent event) -> {
             showLight = btShowLight.isSelected();
             if (!showLight) {
@@ -352,7 +377,6 @@ public class MainMouseDraw extends Application {
         lightGrid.add(btShowLight, 1, 0);
         Label gradLightLabel = new Label("Gradient Light");
         lightGrid.add(gradLightLabel, 0, 1);
-        btGradientLight = new ToggleButton("Off");
         btGradientLight.setOnAction((ActionEvent event) -> {
             gradientLight = btGradientLight.isSelected();
             btGradientLight.setText(gradientLight==true?"On":"Off");
@@ -360,7 +384,6 @@ public class MainMouseDraw extends Application {
         lightGrid.add(btGradientLight, 1, 1);
         Label redPointLabel = new Label("Red Points");
         lightGrid.add(redPointLabel, 0, 2);
-        btRedPoints = new ToggleButton("On");
         btRedPoints.setOnAction((ActionEvent event) -> {
             redPoints = btRedPoints.isSelected();
             btRedPoints.setText(redPoints==true?"On":"Off");
@@ -374,14 +397,12 @@ public class MainMouseDraw extends Application {
         GridPane resetGrid = new GridPane();
         resetGrid.setHgap(5);
         resetGrid.setVgap(5);
-        Button btReset = new Button();
         btReset.setText("Reset");
         btReset.setOnMouseClicked((MouseEvent event) -> {
             mapGraphicsContext.clearRect(0, 0, width, height);
             lineGraphicsContext.clearRect(0, 0, width, height);
         });
         resetGrid.add(btReset, 0, 0);
-        Button btRepaint = new Button();
         btRepaint.setText("Repaint");
         btRepaint.setOnMouseClicked((MouseEvent event) -> {
             repaintMap();
@@ -389,7 +410,6 @@ public class MainMouseDraw extends Application {
         });
         resetGrid.add(btRepaint, 1, 0);
         
-        Button btErase = new Button();
         btErase.setText("Erase");
         btErase.setOnMouseClicked((MouseEvent event) -> {
             eraseMode = !eraseMode;
@@ -538,7 +558,13 @@ public class MainMouseDraw extends Application {
 
     private void repaintLine() {
         lineGraphicsContext.clearRect(0, 0, width, height);
-        for (Line line : sceneLines) {
+        for (int index = 0; index < sceneLines.size(); index++) {
+            Line line = sceneLines.get(index);
+            if (selectedLine > -1 && index == selectedLine) {
+                lineGraphicsContext.setStroke(Color.RED);
+            } else {
+                lineGraphicsContext.setStroke(Color.BLACK);
+            }
             lineGraphicsContext.strokeLine(line.getStart().x, line.getStart().y, line.getEnd().x, line.getEnd().y);
         }
     }
