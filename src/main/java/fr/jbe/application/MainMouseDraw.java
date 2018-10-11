@@ -80,6 +80,9 @@ public class MainMouseDraw extends Application {
     private Group fogLayout;
     private int selectedLine = -1;
     private boolean selectLineMode = false;
+    private double mouseX = 0.0;
+    private double mouseY = 0.0;
+    private Line grabedLine = null;
 
     public static void main(String[] args) {
         launch(args);
@@ -145,8 +148,8 @@ public class MainMouseDraw extends Application {
                 paintLight(event.getX(), event.getY());
             } else if (selectLineMode) { 
                 PVector mouseLocation = new PVector(event.getX(), event.getY());
-                selectedLine = algorithm.getIntersectLineIndex(mouseLocation, sceneLines);
-                repaintLine();
+                int lineIndex = algorithm.getIntersectLineIndex(mouseLocation, sceneLines);
+                repaintLine(lineIndex, Color.ORANGE);
             } else {
                 if (editMap) {
                     higlightCell(event);
@@ -188,12 +191,16 @@ public class MainMouseDraw extends Application {
                 }
             } else if (selectLineMode && event.getButton().equals(MouseButton.PRIMARY)) {
                 PVector mouseLocation = new PVector(event.getX(), event.getY());
+                if (grabedLine != null) {
+                    sceneLines.add(grabedLine);
+                    grabedLine = null;
+                    cursorLineGraphicsContext.clearRect(0, 0, width, height);
+                }
                 selectedLine = algorithm.getIntersectLineIndex(mouseLocation, sceneLines);
                 if (selectedLine > -1) {
                     repaintLine();
                 }
             }
-            selectedLine = -1;
         });
         stackLayout.setOnMouseDragged((MouseEvent event) -> {
             if (editMap) {
@@ -210,11 +217,33 @@ public class MainMouseDraw extends Application {
             }
             if (editLine && !poliLine && lineStart != null) {
                 lineEnd = traceLineToEnd(event.getX(), event.getY());
+            } else if (selectLineMode && event.getButton().equals(MouseButton.PRIMARY)) {
+                if (grabedLine != null) {
+                    double moveX = event.getX() - mouseX;
+                    double moveY = event.getY() - mouseY;
+                    grabedLine.getStart().set((grabedLine.getStart().x + moveX), (grabedLine.getStart().y + moveY), 0);
+                    grabedLine.getEnd().set((grabedLine.getEnd().x + moveX), (grabedLine.getEnd().y + moveY), 0);
+                    cursorLineGraphicsContext.clearRect(0, 0, width, height);
+                    cursorLineGraphicsContext.strokeLine(grabedLine.getStart().x, grabedLine.getStart().y, grabedLine.getEnd().x, grabedLine.getEnd().y);
+                    mouseX = event.getX();
+                    mouseY = event.getY();
+                }
             }
         });
         stackLayout.setOnMousePressed((MouseEvent event) -> {
             if (editLine && !poliLine) {
                 lineStart = getLineStart(event.getX(), event.getY());
+            } else if (selectLineMode && event.getButton().equals(MouseButton.PRIMARY)) {
+                PVector mouseLocation = new PVector(event.getX(), event.getY());
+                selectedLine = algorithm.getIntersectLineIndex(mouseLocation, sceneLines);
+                if (selectedLine > -1) {
+                    mouseX = event.getX();
+                    mouseY = event.getY();
+                    grabedLine = sceneLines.get(selectedLine);
+                    sceneLines.remove(selectedLine);
+                    cursorLineGraphicsContext.clearRect(0, 0, width, height);
+                    cursorLineGraphicsContext.strokeLine(grabedLine.getStart().x, grabedLine.getStart().y, grabedLine.getEnd().x, grabedLine.getEnd().y);
+                }
             }
         });
 
@@ -557,11 +586,21 @@ public class MainMouseDraw extends Application {
     }
 
     private void repaintLine() {
+        repaintLine(-1, null);
+    }
+    
+    private void repaintLine(int lineIndex, Color lineColor) {
         lineGraphicsContext.clearRect(0, 0, width, height);
         for (int index = 0; index < sceneLines.size(); index++) {
             Line line = sceneLines.get(index);
             if (selectedLine > -1 && index == selectedLine) {
                 lineGraphicsContext.setStroke(Color.RED);
+            } else if (lineIndex > -1 && lineIndex == index) {
+                if (lineColor != null) {
+                    lineGraphicsContext.setStroke(lineColor);
+                } else {
+                    lineGraphicsContext.setStroke(Color.RED);
+                }
             } else {
                 lineGraphicsContext.setStroke(Color.BLACK);
             }
