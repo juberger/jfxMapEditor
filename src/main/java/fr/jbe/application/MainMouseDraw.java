@@ -99,14 +99,7 @@ public class MainMouseDraw extends Application {
         lineEnd = null;
         algorithm = new AlgorithmCustom();
 
-        Image image1 = new Image(this.getClass().getResourceAsStream("/ft_conc01_c_512.png"), 512, 512, true, true);
-        resourcesMap.put(Long.valueOf(1), image1);
-        Image image2 = new Image(this.getClass().getResourceAsStream("/ft_conc01_c_64.png"), 64, 64, true, true);
-        resourcesMap.put(Long.valueOf(2), image2);
-        Image image3 = new Image(this.getClass().getResourceAsStream("/ft_stone01_c_512.png"), 512, 512, true, true);
-        resourcesMap.put(Long.valueOf(3), image3);
-        Image image4 = new Image(this.getClass().getResourceAsStream("/ft_stone01_c_64.png"), 64, 64, true, true);
-        resourcesMap.put(Long.valueOf(4), image4);
+        initData();
 
         BorderPane root = new BorderPane();
 
@@ -147,8 +140,7 @@ public class MainMouseDraw extends Application {
             if (showLight) {
                 paintLight(event.getX(), event.getY());
             } else if (selectLineMode) { 
-                PVector mouseLocation = new PVector(event.getX(), event.getY());
-                int lineIndex = algorithm.getIntersectLineIndex(mouseLocation, sceneLines);
+                int lineIndex = getIntersectLineWithMouse(event);
                 repaintLine(lineIndex, Color.ORANGE);
             } else {
                 if (editMap) {
@@ -190,13 +182,12 @@ public class MainMouseDraw extends Application {
                     }
                 }
             } else if (selectLineMode && event.getButton().equals(MouseButton.PRIMARY)) {
-                PVector mouseLocation = new PVector(event.getX(), event.getY());
                 if (grabedLine != null) {
                     sceneLines.add(grabedLine);
                     grabedLine = null;
                     cursorLineGraphicsContext.clearRect(0, 0, width, height);
                 }
-                selectedLine = algorithm.getIntersectLineIndex(mouseLocation, sceneLines);
+                selectedLine = getIntersectLineWithMouse(event);
                 if (selectedLine > -1) {
                     repaintLine();
                 }
@@ -219,14 +210,7 @@ public class MainMouseDraw extends Application {
                 lineEnd = traceLineToEnd(event.getX(), event.getY());
             } else if (selectLineMode && event.getButton().equals(MouseButton.PRIMARY)) {
                 if (grabedLine != null) {
-                    double moveX = event.getX() - mouseX;
-                    double moveY = event.getY() - mouseY;
-                    grabedLine.getStart().set((grabedLine.getStart().x + moveX), (grabedLine.getStart().y + moveY), 0);
-                    grabedLine.getEnd().set((grabedLine.getEnd().x + moveX), (grabedLine.getEnd().y + moveY), 0);
-                    cursorLineGraphicsContext.clearRect(0, 0, width, height);
-                    cursorLineGraphicsContext.strokeLine(grabedLine.getStart().x, grabedLine.getStart().y, grabedLine.getEnd().x, grabedLine.getEnd().y);
-                    mouseX = event.getX();
-                    mouseY = event.getY();
+                    moveSelectedLine(event);
                 }
             }
         });
@@ -234,16 +218,7 @@ public class MainMouseDraw extends Application {
             if (editLine && !poliLine) {
                 lineStart = getLineStart(event.getX(), event.getY());
             } else if (selectLineMode && event.getButton().equals(MouseButton.PRIMARY)) {
-                PVector mouseLocation = new PVector(event.getX(), event.getY());
-                selectedLine = algorithm.getIntersectLineIndex(mouseLocation, sceneLines);
-                if (selectedLine > -1) {
-                    mouseX = event.getX();
-                    mouseY = event.getY();
-                    grabedLine = sceneLines.get(selectedLine);
-                    sceneLines.remove(selectedLine);
-                    cursorLineGraphicsContext.clearRect(0, 0, width, height);
-                    cursorLineGraphicsContext.strokeLine(grabedLine.getStart().x, grabedLine.getStart().y, grabedLine.getEnd().x, grabedLine.getEnd().y);
-                }
+                markSelectedLine(event);
             }
         });
 
@@ -266,6 +241,41 @@ public class MainMouseDraw extends Application {
                 }
             }
         });
+    }
+
+    private void moveSelectedLine(MouseEvent event) {
+        double moveX = event.getX() - mouseX;
+        double moveY = event.getY() - mouseY;
+        grabedLine.getStart().set((grabedLine.getStart().x + moveX), (grabedLine.getStart().y + moveY), 0);
+        grabedLine.getEnd().set((grabedLine.getEnd().x + moveX), (grabedLine.getEnd().y + moveY), 0);
+        cursorLineGraphicsContext.clearRect(0, 0, width, height);
+        cursorLineGraphicsContext.strokeLine(grabedLine.getStart().x, grabedLine.getStart().y, grabedLine.getEnd().x, grabedLine.getEnd().y);
+        mouseX = event.getX();
+        mouseY = event.getY();
+    }
+
+    private void markSelectedLine(MouseEvent event) {
+        selectedLine = getIntersectLineWithMouse(event);
+        if (selectedLine > -1) {
+            mouseX = event.getX();
+            mouseY = event.getY();
+            grabedLine = sceneLines.get(selectedLine);
+            sceneLines.remove(selectedLine);
+            cursorLineGraphicsContext.clearRect(0, 0, width, height);
+            cursorLineGraphicsContext.strokeLine(grabedLine.getStart().x, grabedLine.getStart().y, grabedLine.getEnd().x, grabedLine.getEnd().y);
+        }
+    }
+
+    private int getIntersectLineWithMouse(MouseEvent event) {
+        PVector mouseLocation = new PVector(event.getX(), event.getY());
+        return algorithm.getIntersectLineIndex(mouseLocation, sceneLines);
+    }
+
+    private void initData() {
+        resourcesMap.put(Long.valueOf(1), new Image(this.getClass().getResourceAsStream("/ft_conc01_c_512.png"), 512, 512, true, true));
+        resourcesMap.put(Long.valueOf(2), new Image(this.getClass().getResourceAsStream("/ft_conc01_c_64.png"), 64, 64, true, true));
+        resourcesMap.put(Long.valueOf(3), new Image(this.getClass().getResourceAsStream("/ft_stone01_c_512.png"), 512, 512, true, true));
+        resourcesMap.put(Long.valueOf(4), new Image(this.getClass().getResourceAsStream("/ft_stone01_c_64.png"), 64, 64, true, true));
     }
     
     private void createGui(BorderPane root) {
